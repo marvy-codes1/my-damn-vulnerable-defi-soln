@@ -26,6 +26,7 @@ contract BasicForwarder is EIP712 {
     error OldRequest();
     error InvalidTarget();
     error InvalidValue();
+    error InvalidSender()
 
     bytes32 private constant _REQUEST_TYPEHASH = keccak256(
         "Request(address from,address target,uint256 value,uint256 gas,uint256 nonce,bytes data,uint256 deadline)"
@@ -42,6 +43,9 @@ contract BasicForwarder is EIP712 {
      * - Be signed by the original sender (`from` field)
      */
     function _checkRequest(Request calldata request, bytes calldata signature) private view {
+        // @audit NOTE: this would be an easy fix
+        //if (request.from != msg.sender) revert InvalidSender();
+
         if (request.value != msg.value) revert InvalidValue();
         if (block.timestamp > request.deadline) revert OldRequest();
         if (nonces[request.from] != request.nonce) revert InvalidNonce();
