@@ -16,6 +16,13 @@ contract SideEntranceLenderPool {
     event Deposit(address indexed who, uint256 amount);
     event Withdraw(address indexed who, uint256 amount);
 
+    // @audit-info
+    // flashloan 1000
+    // deposit 1000 back 
+    // repay 0
+    // then after withdraw from contract to the recovery address
+
+
     function deposit() external payable {
         unchecked {
             balances[msg.sender] += msg.value;
