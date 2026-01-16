@@ -52,6 +52,9 @@ contract TheRewarderDistributor {
         return distributions[IERC20(token)].roots[batchNumber];
     }
 
+    // @audit-info im thiking its a basic claim where they are not check if you actually own the claim
+    // Note: Possibly they need to check against msg.sender
+
     function createDistribution(IERC20 token, bytes32 newRoot, uint256 amount) external {
         if (amount == 0) revert NotEnoughTokensToDistribute();
         if (newRoot == bytes32(0)) revert InvalidRoot();
@@ -77,6 +80,7 @@ contract TheRewarderDistributor {
         }
     }
 
+    
     // Allow claiming rewards of multiple tokens in a single transaction
     function claimRewards(Claim[] memory inputClaims, IERC20[] memory inputTokens) external {
         Claim memory inputClaim;
