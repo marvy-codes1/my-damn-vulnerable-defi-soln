@@ -32,11 +32,15 @@ contract TheRewarderDistributor {
 
     mapping(IERC20 token => Distribution) public distributions;
 
+    // @audit-info fixes bug
+    // mapping(address claimer => mapping(bytes32 leaf => bool)) proofs;
+
     error StillDistributing();
     error InvalidRoot();
     error AlreadyClaimed();
     error InvalidProof();
     error NotEnoughTokensToDistribute();
+    error ProofAlreadyConsumed();
 
     event NewDistribution(IERC20 token, uint256 batchNumber, bytes32 newMerkleRoot, uint256 totalAmount);
 
@@ -90,6 +94,8 @@ contract TheRewarderDistributor {
         uint256 bitsSet; // accumulator
         uint256 amount;
 
+        // mapping(address claimer => mapping(bytes32[] proof => uint256 bits)) proofs;
+
         for (uint256 i = 0; i < inputClaims.length; i++) {
             inputClaim = inputClaims[i];
 
@@ -121,6 +127,10 @@ contract TheRewarderDistributor {
             // Note: this just wants to know if the proof is valid
             // NOTE: It does not care how many times it was called/used
             if (!MerkleProof.verify(inputClaim.proof, root, leaf)) revert InvalidProof();
+
+            // @audit-info fixes bug
+            // if (proofs[msg.sender][leaf]) revert AlreadyClaimed();
+            // proofs[msg.sender][leaf] = true;
 
             inputTokens[inputClaim.tokenIndex].transfer(msg.sender, inputClaim.amount);
         }
