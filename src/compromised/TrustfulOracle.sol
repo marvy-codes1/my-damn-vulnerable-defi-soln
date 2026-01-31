@@ -49,6 +49,7 @@ contract TrustfulOracle is AccessControlEnumerable {
                 ++i;
             }
         }
+        // @audit-info why renounce initializer role?
         renounceRole(INITIALIZER_ROLE, msg.sender);
     }
 
