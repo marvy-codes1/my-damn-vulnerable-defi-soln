@@ -117,10 +117,10 @@ contract SelfieExploit is IERC3156FlashBorrower {
     }
 
     function onFlashLoan(
-        address initiator,
-        address tokenAddr,
+        address,
+        address,
         uint256 amount,
-        uint256 fee,
+        uint256,
         bytes calldata
     ) external override returns (bytes32) {
         // pool.deposit{value: msg.value}();

