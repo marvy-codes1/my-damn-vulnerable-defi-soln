@@ -85,7 +85,7 @@ contract ClimberTimelock is ClimberTimelockBase {
             revert InvalidDataElementsCount();
         }
 
-        bytes32 id = getOperationId(targets, values, dataElements, salt);
+        bytes32 id =   getOperationId(targets, values, dataElements, salt);
 
         for (uint8 i = 0; i < targets.length; ++i) {
             targets[i].functionCallWithValue(dataElements[i], values[i]);
@@ -98,6 +98,8 @@ contract ClimberTimelock is ClimberTimelockBase {
         operations[id].executed = true;
     }
 
+    // @audit-info you can adjust the newDelay to 0
+    
     function updateDelay(uint64 newDelay) external {
         if (msg.sender != address(this)) {
             revert CallerNotTimelock();
